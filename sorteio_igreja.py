@@ -9,11 +9,12 @@ from fpdf import FPDF
 
 ARQUIVO_DADOS = "dados.json"
 
-DARK_BG = "#2b2d30"
-ENTRY_BG = "#3c3f41"
-LIST_BG = "#313335"
-TEXT_FG = "#ffffff"
-SELECT_BG = "#4a4d50"
+# Paleta de cores estilizada
+PRIMARY_BG = "#1E2A44"  # Azul escuro
+ACCENT_BG = "#2E4057"   # Cinza-azulado
+HIGHLIGHT = "#FFD700"   # Dourado para destaques
+TEXT_COLOR = "#FFFFFF"  # Branco
+SELECT_COLOR = "#4A6FA5" # Azul claro para seleção
 
 # ==================================================
 # FUNÇÕES AUXILIARES
@@ -46,22 +47,21 @@ def salvar_dados(dados):
 # FUNÇÕES DE CADASTRO
 # ==================================================
 def adicionar_membro():
-    nome = simpledialog.askstring("Novo Membro", "Nome do membro:")
+    nome = simpledialog.askstring("Novo Membro", "Nome do membro:", parent=root)
     if not nome:
         return
 
-    # Janela para marcar horários restritos
     window = tk.Toplevel(root)
-    window.title(f"Marque os horários restritos para {nome}")
-    window.geometry("300x500")
-    window.configure(bg=DARK_BG)
+    window.title(f"Restrições de {nome}")
+    window.geometry("350x550")
+    window.configure(bg=PRIMARY_BG)
 
-    canvas_frame = tk.Frame(window, bg=DARK_BG)
+    canvas_frame = tk.Frame(window, bg=PRIMARY_BG)
     canvas_frame.pack(fill='both', expand=True)
 
-    canvas = tk.Canvas(canvas_frame, bg=DARK_BG)
-    scrollbar = ttk.Scrollbar(canvas_frame, orient="vertical", command=canvas.yview)
-    scrollable_frame = tk.Frame(canvas, bg=DARK_BG)
+    canvas = tk.Canvas(canvas_frame, bg=PRIMARY_BG, highlightthickness=0)
+    scrollbar = ttk.Scrollbar(canvas_frame, orient="vertical", command=canvas.yview, style="Custom.Vertical.TScrollbar")
+    scrollable_frame = tk.Frame(canvas, bg=PRIMARY_BG)
 
     scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
 
@@ -77,9 +77,10 @@ def adicionar_membro():
     for h in horarios:
         var = tk.IntVar(value=0)
         chk = tk.Checkbutton(scrollable_frame, text=h, variable=var, onvalue=1, offvalue=0,
-                             bg=DARK_BG, fg=TEXT_FG, selectcolor=SELECT_BG,
-                             activebackground=DARK_BG, activeforeground=TEXT_FG)
-        chk.pack(anchor='w', padx=10, pady=2)
+                             bg=PRIMARY_BG, fg=TEXT_COLOR, selectcolor=SELECT_COLOR,
+                             activebackground=ACCENT_BG, activeforeground=TEXT_COLOR,
+                             font=("Arial", 10))
+        chk.pack(anchor='w', padx=15, pady=5)
         check_vars[h] = var
 
     def salvar_membro():
@@ -87,23 +88,24 @@ def adicionar_membro():
         dados["membros"].append(nome)
         dados["restricoes_horarios"][nome] = restricoes
         salvar_dados(dados)
-        messagebox.showinfo("Sucesso", f"Membro '{nome}' adicionado com sucesso!")
+        messagebox.showinfo("Sucesso", f"'{nome}' adicionado!", parent=root)
         window.destroy()
         if current_tab == 'membros':
             show_frame('membros')
 
-    tk.Button(window, text="Salvar", command=salvar_membro, bg=ENTRY_BG, fg=TEXT_FG, width=20).pack(pady=10)
+    tk.Button(window, text="Salvar", command=salvar_membro, bg=HIGHLIGHT, fg=PRIMARY_BG,
+              font=("Arial", 12, "bold"), width=15, relief="flat").pack(pady=15)
 
 def adicionar_grupo():
-    nome_grupo = simpledialog.askstring("Novo Grupo", "Nome do grupo:")
+    nome_grupo = simpledialog.askstring("Novo Grupo", "Nome do grupo:", parent=root)
     if not nome_grupo:
         return
     if nome_grupo in dados["grupos"]:
-        messagebox.showwarning("Aviso", "Esse grupo já existe!")
+        messagebox.showwarning("Aviso", "Grupo já existe!", parent=root)
         return
     dados["grupos"][nome_grupo] = []
     salvar_dados(dados)
-    messagebox.showinfo("Sucesso", f"Grupo '{nome_grupo}' criado com sucesso!")
+    messagebox.showinfo("Sucesso", f"'{nome_grupo}' criado!", parent=root)
     if current_tab == 'membros':
         show_frame('membros')
 
@@ -111,53 +113,55 @@ def adicionar_membro_ao_grupo_specific(membro):
     if not membro:
         return
     if not dados["grupos"]:
-        messagebox.showwarning("Aviso", "Nenhum grupo cadastrado!")
+        messagebox.showwarning("Aviso", "Nenhum grupo cadastrado!", parent=root)
         return
 
-    # Janela para selecionar grupo com tamanho ajustado
     window = tk.Toplevel(root)
     window.title(f"Adicionar {membro} a um grupo")
-    window.geometry("400x150")  # Aumentado para 400x150
-    window.configure(bg=DARK_BG)
+    window.geometry("450x200")
+    window.configure(bg=PRIMARY_BG)
 
-    tk.Label(window, text="Selecione o grupo:", bg=DARK_BG, fg=TEXT_FG).pack(pady=20)
+    tk.Label(window, text="Selecione o grupo:", bg=PRIMARY_BG, fg=TEXT_COLOR,
+             font=("Arial", 12, "bold")).pack(pady=20)
 
     grupos_var = tk.StringVar(value="")
-    combobox = ttk.Combobox(window, textvariable=grupos_var, values=list(dados["grupos"].keys()), state="readonly")
+    combobox = ttk.Combobox(window, textvariable=grupos_var, values=list(dados["grupos"].keys()),
+                            state="readonly", style="Custom.TCombobox")
     combobox.pack(pady=20)
 
     def salvar_selecao():
         grupo = grupos_var.get()
         if not grupo:
-            messagebox.showwarning("Aviso", "Selecione um grupo!")
+            messagebox.showwarning("Aviso", "Selecione um grupo!", parent=root)
             return
         if membro in dados["grupos"][grupo]:
-            messagebox.showinfo("Aviso", "Esse membro já está nesse grupo!")
+            messagebox.showinfo("Aviso", "Membro já está nesse grupo!", parent=root)
             window.destroy()
             return
         dados["grupos"][grupo].append(membro)
         salvar_dados(dados)
         if current_tab == 'membros':
             show_frame('membros')
-        messagebox.showinfo("Sucesso", f"Membro '{membro}' adicionado ao grupo '{grupo}' com sucesso!")
+        messagebox.showinfo("Sucesso", f"'{membro}' adicionado a '{grupo}'!", parent=root)
         window.destroy()
 
-    tk.Button(window, text="Adicionar", command=salvar_selecao, bg=ENTRY_BG, fg=TEXT_FG, width=20).pack(pady=20)
+    tk.Button(window, text="Adicionar", command=salvar_selecao, bg=HIGHLIGHT, fg=PRIMARY_BG,
+              font=("Arial", 12, "bold"), width=15, relief="flat").pack(pady=20)
 
 def gerenciar_restricoes(membro):
     if not membro:
         return
     window = tk.Toplevel(root)
-    window.title(f"Restrições de Horário para {membro}")
-    window.geometry("300x500")
-    window.configure(bg=DARK_BG)
+    window.title(f"Restrições de {membro}")
+    window.geometry("350x550")
+    window.configure(bg=PRIMARY_BG)
 
-    canvas_frame = tk.Frame(window, bg=DARK_BG)
+    canvas_frame = tk.Frame(window, bg=PRIMARY_BG)
     canvas_frame.pack(fill='both', expand=True)
 
-    canvas = tk.Canvas(canvas_frame, bg=DARK_BG)
-    scrollbar = ttk.Scrollbar(canvas_frame, orient="vertical", command=canvas.yview)
-    scrollable_frame = tk.Frame(canvas, bg=DARK_BG)
+    canvas = tk.Canvas(canvas_frame, bg=PRIMARY_BG, highlightthickness=0)
+    scrollbar = ttk.Scrollbar(canvas_frame, orient="vertical", command=canvas.yview, style="Custom.Vertical.TScrollbar")
+    scrollable_frame = tk.Frame(canvas, bg=PRIMARY_BG)
 
     scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
 
@@ -174,31 +178,32 @@ def gerenciar_restricoes(membro):
     for h in horarios:
         var = tk.IntVar(value=1 if h in restricoes else 0)
         chk = tk.Checkbutton(scrollable_frame, text=h, variable=var, onvalue=1, offvalue=0,
-                             bg=DARK_BG, fg=TEXT_FG, selectcolor=SELECT_BG,
-                             activebackground=DARK_BG, activeforeground=TEXT_FG)
-        chk.pack(anchor='w', padx=10, pady=2)
+                             bg=PRIMARY_BG, fg=TEXT_COLOR, selectcolor=SELECT_COLOR,
+                             activebackground=ACCENT_BG, activeforeground=TEXT_COLOR,
+                             font=("Arial", 10))
+        chk.pack(anchor='w', padx=15, pady=5)
         check_vars[h] = var
 
     def salvar_restricoes():
         novas_restricoes = [h for h, var in check_vars.items() if var.get() == 1]
         dados["restricoes_horarios"][membro] = novas_restricoes
         salvar_dados(dados)
-        messagebox.showinfo("Sucesso", "Restrições de horário atualizadas com sucesso!")
+        messagebox.showinfo("Sucesso", "Restrições atualizadas!", parent=root)
         window.destroy()
 
-    tk.Button(window, text="Salvar", command=salvar_restricoes, bg=ENTRY_BG, fg=TEXT_FG, width=20).pack(pady=10)
+    tk.Button(window, text="Salvar", command=salvar_restricoes, bg=HIGHLIGHT, fg=PRIMARY_BG,
+              font=("Arial", 12, "bold"), width=15, relief="flat").pack(pady=15)
 
 # ==================================================
 # FUNÇÃO DE SORTEIO
 # ==================================================
 def gerar_sorteio():
     if not dados["membros"]:
-        messagebox.showwarning("Aviso", "Cadastre membros primeiro!")
+        messagebox.showwarning("Aviso", "Cadastre membros primeiro!", parent=root)
         return
     
     horarios = get_horarios()
 
-    # Identificar restrições de madrugada do último sorteio
     restritos = set()
     if dados["sorteios"]:
         ultimo_sorteio = dados["sorteios"][-1]
@@ -208,9 +213,7 @@ def gerar_sorteio():
 
     resultados = {}
     for h in horarios:
-        # Aplicar restrições individuais
         candidatos = [m for m in dados["membros"] if h not in dados["restricoes_horarios"].get(m, [])]
-        # Aplicar restrição de repetição para madrugada
         if "00:00" <= h <= "06:00":
             candidatos = [m for m in candidatos if m not in restritos]
         if not candidatos:
@@ -246,7 +249,7 @@ def copiar_texto_sorteio(sorteio):
                 texto += f"{h}: {nome}\n"
         texto += "\n"
     pyperclip.copy(texto)
-    messagebox.showinfo("Sucesso", "Texto do sorteio copiado para a área de transferência!")
+    messagebox.showinfo("Sucesso", "Texto copiado!", parent=root)
 
 # ==================================================
 # FUNÇÃO PARA GERAR PDF
@@ -261,7 +264,6 @@ def gerar_pdf_sorteio(sorteio):
     pdf.cell(200, 10, txt="Geral:", ln=1)
     pdf.set_font("Arial", size=10)
     for h, nome in sorteio["resultados"].items():
-        # Substituir "—" por "-" para evitar erro de codificação
         nome_seguro = nome.replace("—", "-")
         pdf.cell(200, 10, txt=f"{h}: {nome_seguro}", ln=1)
     
@@ -276,7 +278,7 @@ def gerar_pdf_sorteio(sorteio):
     
     file_path = f"sorteio_{sorteio['data'].replace('/', '-').replace(':', '-')}.pdf"
     pdf.output(file_path)
-    messagebox.showinfo("Sucesso", f"PDF gerado com sucesso: {file_path}")
+    messagebox.showinfo("Sucesso", f"PDF gerado: {file_path}", parent=root)
 
 # ==================================================
 # FUNÇÃO DE EXIBIÇÃO
@@ -285,45 +287,47 @@ def show_sorteio_in_frame(sorteio, frame):
     for w in frame.winfo_children():
         w.destroy()
 
-    notebook = ttk.Notebook(frame)
-    notebook.pack(fill="both", expand=True)
+    notebook = ttk.Notebook(frame, style="Custom.TNotebook")
+    notebook.pack(fill="both", expand=True, padx=10, pady=10)
 
     # Aba Geral
-    geral_frame = tk.Frame(notebook, bg=DARK_BG)
-    notebook.add(geral_frame, text="Geral")
+    geral_frame = tk.Frame(notebook, bg=PRIMARY_BG)
+    notebook.add(geral_frame, text="🌐 Geral")
 
-    tree_geral = ttk.Treeview(geral_frame, columns=("Horario", "Membro"), show="headings")
+    tree_geral = ttk.Treeview(geral_frame, columns=("Horario", "Membro"), show="headings", style="Custom.Treeview")
     tree_geral.heading("Horario", text="Horário")
     tree_geral.heading("Membro", text="Membro")
-    tree_geral.column("Horario", width=100)
-    tree_geral.column("Membro", width=250)
-    tree_geral.pack(fill="both", expand=True)
+    tree_geral.column("Horario", width=120)
+    tree_geral.column("Membro", width=280)
+    tree_geral.pack(fill="both", expand=True, padx=10, pady=10)
 
     for h, nome in sorteio["resultados"].items():
         tree_geral.insert("", "end", values=(h, nome))
 
     # Abas por Grupo
     for grupo, membros_grupo in dados["grupos"].items():
-        grupo_frame = tk.Frame(notebook, bg=DARK_BG)
-        notebook.add(grupo_frame, text=grupo)
+        grupo_frame = tk.Frame(notebook, bg=PRIMARY_BG)
+        notebook.add(grupo_frame, text=f"👥 {grupo}")
 
-        tree_grupo = ttk.Treeview(grupo_frame, columns=("Horario", "Membro"), show="headings")
+        tree_grupo = ttk.Treeview(grupo_frame, columns=("Horario", "Membro"), show="headings", style="Custom.Treeview")
         tree_grupo.heading("Horario", text="Horário")
         tree_grupo.heading("Membro", text="Membro")
-        tree_grupo.column("Horario", width=100)
-        tree_grupo.column("Membro", width=250)
-        tree_grupo.pack(fill="both", expand=True)
+        tree_grupo.column("Horario", width=120)
+        tree_grupo.column("Membro", width=280)
+        tree_grupo.pack(fill="both", expand=True, padx=10, pady=10)
 
         for h, nome in sorteio["resultados"].items():
             if nome in membros_grupo:
                 tree_grupo.insert("", "end", values=(h, nome))
 
-    # Botões para copiar e baixar
-    buttons_frame = tk.Frame(frame, bg=DARK_BG)
-    buttons_frame.pack(fill='x', pady=10)
+    # Botões estilizados
+    buttons_frame = tk.Frame(frame, bg=PRIMARY_BG)
+    buttons_frame.pack(fill='x', pady=15)
 
-    tk.Button(buttons_frame, text="Copiar Texto", command=lambda: copiar_texto_sorteio(sorteio), bg=ENTRY_BG, fg=TEXT_FG, width=15).pack(side='left', padx=10)
-    tk.Button(buttons_frame, text="Baixar PDF", command=lambda: gerar_pdf_sorteio(sorteio), bg=ENTRY_BG, fg=TEXT_FG, width=15).pack(side='left', padx=10)
+    tk.Button(buttons_frame, text="📋 Copiar", command=lambda: copiar_texto_sorteio(sorteio), bg=HIGHLIGHT,
+              fg=PRIMARY_BG, font=("Arial", 10, "bold"), width=12, relief="flat").pack(side='left', padx=5)
+    tk.Button(buttons_frame, text="💾 Baixar PDF", command=lambda: gerar_pdf_sorteio(sorteio), bg=HIGHLIGHT,
+              fg=PRIMARY_BG, font=("Arial", 10, "bold"), width=12, relief="flat").pack(side='left', padx=5)
 
 # ==================================================
 # INTERFACE
@@ -342,55 +346,43 @@ def show_frame(tab):
         historico_content()
 
 def home_content():
-    label = tk.Label(main_frame, text="Sorteio de Oração da Igreja", font=("Arial", 16, "bold"), bg=DARK_BG, fg=TEXT_FG)
-    label.pack(pady=50)
+    label = tk.Label(main_frame, text="Sorteio de Oração", font=("Arial", 24, "bold"), bg=PRIMARY_BG,
+                     fg=HIGHLIGHT, pady=20)
+    label.pack()
 
-    membros_frame = tk.Frame(main_frame, bg=DARK_BG)
+    membros_frame = tk.Frame(main_frame, bg=PRIMARY_BG)
     membros_frame.pack(fill='x', padx=20, pady=10)
 
-    tk.Label(membros_frame, text="Membros", font=("Arial", 12, "bold"), bg=DARK_BG, fg=TEXT_FG).pack()
+    tk.Label(membros_frame, text="Membros", font=("Arial", 16, "bold"), bg=PRIMARY_BG, fg=TEXT_COLOR).pack()
 
-    search = tk.Entry(membros_frame, bg=ENTRY_BG, fg='grey', insertbackground=TEXT_FG)
-    search.pack(fill='x', pady=5)
-    search.insert(0, "Buscar membros...")
+    search = tk.Entry(membros_frame, bg=ACCENT_BG, fg=TEXT_COLOR, insertbackground=TEXT_COLOR,
+                      font=("Arial", 10), relief="flat")
+    search.pack(fill='x', pady=5, ipady=5)
+    search.insert(0, "🔍 Buscar membros...")
+    search.bind("<FocusIn>", lambda e: search.delete(0, tk.END) if search.get() == "🔍 Buscar membros..." else None)
+    search.bind("<FocusOut>", lambda e: search.insert(0, "🔍 Buscar membros...") if not search.get() else None)
 
-    def on_focus_in(event):
-        if search.get() == "Buscar membros...":
-            search.delete(0, tk.END)
-            search.config(fg=TEXT_FG)
-
-    def on_focus_out(event):
-        if search.get() == "":
-            search.insert(0, "Buscar membros...")
-            search.config(fg='grey')
-
-    search.bind("<FocusIn>", on_focus_in)
-    search.bind("<FocusOut>", on_focus_out)
-
-    membros_list = tk.Listbox(membros_frame, bg=LIST_BG, fg=TEXT_FG, selectbackground=SELECT_BG, width=50, height=20)
-    membros_list.pack(fill='both', expand=True)
+    membros_list = tk.Listbox(membros_frame, bg=ACCENT_BG, fg=TEXT_COLOR, selectbackground=SELECT_COLOR,
+                              width=50, height=20, font=("Arial", 10), relief="flat")
+    membros_list.pack(fill='both', expand=True, padx=5, pady=5)
 
     def update_membros_list(query=''):
         membros_list.delete(0, tk.END)
-        actual_query = query if query != "Buscar membros..." else ""
+        actual_query = query if query != "🔍 Buscar membros..." else ""
         for m in dados["membros"]:
             if actual_query.lower() in m.lower() or not actual_query:
                 membros_list.insert(tk.END, m)
 
     update_membros_list(search.get())
-
     search.bind('<KeyRelease>', lambda e: update_membros_list(search.get()))
 
-    # Menu de contexto para membros
-    membros_menu = tk.Menu(root, tearoff=0, bg=ENTRY_BG, fg=TEXT_FG)
-    membros_menu.add_command(label="Adicionar a Grupo", command=lambda: adicionar_membro_ao_grupo_specific(get_selected_member()))
-    membros_menu.add_command(label="Gerenciar Restrições de Horário", command=lambda: gerenciar_restricoes(get_selected_member()))
+    membros_menu = tk.Menu(root, tearoff=0, bg=ACCENT_BG, fg=TEXT_COLOR, font=("Arial", 10))
+    membros_menu.add_command(label="👥 Adicionar a Grupo", command=lambda: adicionar_membro_ao_grupo_specific(get_selected_member()))
+    membros_menu.add_command(label="⏰ Gerenciar Restrições", command=lambda: gerenciar_restricoes(get_selected_member()))
 
     def get_selected_member():
         sel = membros_list.curselection()
-        if sel:
-            return membros_list.get(sel[0])
-        return None
+        return membros_list.get(sel[0]) if sel else None
 
     def show_membros_menu(e):
         try:
@@ -406,15 +398,17 @@ def home_content():
     membros_list.bind("<Button-3>", show_membros_menu)
     membros_list.bind("<Double-1>", show_membros_menu)
 
-    tk.Button(main_frame, text="Gerar Novo Sorteio", command=gerar_sorteio, bg=ENTRY_BG, fg=TEXT_FG, width=20).pack(pady=10)
+    tk.Button(main_frame, text="🎲 Gerar Sorteio", command=gerar_sorteio, bg=HIGHLIGHT, fg=PRIMARY_BG,
+              font=("Arial", 12, "bold"), width=15, relief="flat").pack(pady=20)
 
 def membros_content():
-    left = tk.Frame(main_frame, bg=DARK_BG)
+    left = tk.Frame(main_frame, bg=PRIMARY_BG)
     left.pack(side='left', fill='y', padx=20, pady=10)
 
-    tk.Label(left, text="Membros", font=("Arial", 12, "bold"), bg=DARK_BG, fg=TEXT_FG).pack()
+    tk.Label(left, text="Membros", font=("Arial", 16, "bold"), bg=PRIMARY_BG, fg=TEXT_COLOR).pack()
 
-    membros_list = tk.Listbox(left, bg=LIST_BG, fg=TEXT_FG, selectbackground=SELECT_BG, width=30, height=20)
+    membros_list = tk.Listbox(left, bg=ACCENT_BG, fg=TEXT_COLOR, selectbackground=SELECT_COLOR,
+                              width=30, height=20, font=("Arial", 10), relief="flat")
     membros_list.pack(fill='y', expand=True)
 
     def update_membros_list():
@@ -424,14 +418,16 @@ def membros_content():
 
     update_membros_list()
 
-    tk.Button(left, text="Adicionar Membro", command=adicionar_membro, bg=ENTRY_BG, fg=TEXT_FG, width=20).pack(pady=5)
+    tk.Button(left, text="➕ Adicionar", command=adicionar_membro, bg=HIGHLIGHT, fg=PRIMARY_BG,
+              font=("Arial", 12, "bold"), width=15, relief="flat").pack(pady=5)
 
-    right = tk.Frame(main_frame, bg=DARK_BG)
+    right = tk.Frame(main_frame, bg=PRIMARY_BG)
     right.pack(side='left', fill='both', expand=True, padx=20, pady=10)
 
-    tk.Label(right, text="Grupos", font=("Arial", 12, "bold"), bg=DARK_BG, fg=TEXT_FG).pack()
+    tk.Label(right, text="Grupos", font=("Arial", 16, "bold"), bg=PRIMARY_BG, fg=TEXT_COLOR).pack()
 
-    grupos_list = tk.Listbox(right, bg=LIST_BG, fg=TEXT_FG, selectbackground=SELECT_BG, width=40, height=20)
+    grupos_list = tk.Listbox(right, bg=ACCENT_BG, fg=TEXT_COLOR, selectbackground=SELECT_COLOR,
+                             width=40, height=20, font=("Arial", 10), relief="flat")
     grupos_list.pack(fill='both', expand=True)
 
     def update_grupos_list():
@@ -441,31 +437,33 @@ def membros_content():
 
     update_grupos_list()
 
-    tk.Button(right, text="Criar Grupo", command=adicionar_grupo, bg=ENTRY_BG, fg=TEXT_FG, width=20).pack(pady=5)
+    tk.Button(right, text="➕ Criar Grupo", command=adicionar_grupo, bg=HIGHLIGHT, fg=PRIMARY_BG,
+              font=("Arial", 12, "bold"), width=15, relief="flat").pack(pady=5)
 
 def historico_content():
     if not dados["sorteios"]:
-        label = tk.Label(main_frame, text="Nenhum sorteio encontrado.", font=("Arial", 12), bg=DARK_BG, fg=TEXT_FG)
+        label = tk.Label(main_frame, text="Nenhum sorteio encontrado.", font=("Arial", 14), bg=PRIMARY_BG, fg=TEXT_COLOR)
         label.pack(pady=50)
         return
 
-    left = tk.Frame(main_frame, bg=DARK_BG)
+    left = tk.Frame(main_frame, bg=PRIMARY_BG)
     left.pack(side='left', fill='y', padx=20, pady=10)
 
-    tk.Label(left, text="Sorteios Anteriores", font=("Arial", 12, "bold"), bg=DARK_BG, fg=TEXT_FG).pack()
+    tk.Label(left, text="Sorteios", font=("Arial", 16, "bold"), bg=PRIMARY_BG, fg=TEXT_COLOR).pack()
 
-    hist_list = tk.Listbox(left, bg=LIST_BG, fg=TEXT_FG, selectbackground=SELECT_BG, width=30, height=20)
+    hist_list = tk.Listbox(left, bg=ACCENT_BG, fg=TEXT_COLOR, selectbackground=SELECT_COLOR,
+                           width=30, height=20, font=("Arial", 10), relief="flat")
     hist_list.pack(fill='y', expand=True)
 
     for s in dados["sorteios"]:
         hist_list.insert(tk.END, s["data"])
 
-    right = tk.Frame(main_frame, bg=DARK_BG)
+    right = tk.Frame(main_frame, bg=PRIMARY_BG)
     right.pack(side='left', fill='both', expand=True, padx=20, pady=10)
 
-    tk.Label(right, text="Detalhes do Sorteio", font=("Arial", 12, "bold"), bg=DARK_BG, fg=TEXT_FG).pack()
+    tk.Label(right, text="Detalhes", font=("Arial", 16, "bold"), bg=PRIMARY_BG, fg=TEXT_COLOR).pack()
 
-    tree_frame = tk.Frame(right, bg=DARK_BG)
+    tree_frame = tk.Frame(right, bg=PRIMARY_BG)
     tree_frame.pack(fill='both', expand=True)
 
     def on_select(e=None):
@@ -489,31 +487,31 @@ def historico_content():
 dados = carregar_dados()
 
 root = tk.Tk()
-root.title("Sorteio de Oração da Igreja")
-root.geometry("800x600")
-root.configure(bg=DARK_BG)
+root.title("Sorteio de Oração")
+root.geometry("900x700")
+root.configure(bg=PRIMARY_BG)
 
+# Estilização personalizada
 style = ttk.Style()
-style.configure("Treeview", background=LIST_BG, foreground=TEXT_FG, fieldbackground=LIST_BG, rowheight=25)
-style.configure("Treeview.Heading", background=ENTRY_BG, foreground=TEXT_FG)
-style.map("Treeview", background=[('selected', SELECT_BG)], foreground=[('selected', TEXT_FG)])
+style.theme_use('clam')
+style.configure("Custom.TNotebook", background=PRIMARY_BG, foreground=TEXT_COLOR, borderwidth=0)
+style.configure("Custom.Treeview", background=ACCENT_BG, foreground=TEXT_COLOR, fieldbackground=ACCENT_BG)
+style.map("Custom.Treeview", background=[('selected', SELECT_COLOR)], foreground=[('selected', TEXT_COLOR)])
+style.configure("Custom.TCombobox", fieldbackground=ACCENT_BG, background=ACCENT_BG, foreground=TEXT_COLOR)
+style.configure("Custom.Vertical.TScrollbar", background=ACCENT_BG, troughcolor=PRIMARY_BG, arrowcolor=TEXT_COLOR)
 
-top_frame = tk.Frame(root, bg=DARK_BG)
-top_frame.pack(fill='x', pady=5)
+top_frame = tk.Frame(root, bg=PRIMARY_BG, height=60)
+top_frame.pack(fill='x')
 
-home_btn = tk.Button(top_frame, text="Home", bg=DARK_BG, fg=TEXT_FG, borderwidth=0, command=lambda: show_frame('home'))
-home_btn.pack(side='left', padx=10)
+tk.Button(top_frame, text="🏠 Home", bg=ACCENT_BG, fg=TEXT_COLOR, font=("Arial", 12), borderwidth=0,
+          command=lambda: show_frame('home')).pack(side='left', padx=10, pady=10)
+tk.Button(top_frame, text="👥 Membros", bg=ACCENT_BG, fg=TEXT_COLOR, font=("Arial", 12), borderwidth=0,
+          command=lambda: show_frame('membros')).pack(side='left', padx=10, pady=10)
+tk.Button(top_frame, text="📅 Histórico", bg=ACCENT_BG, fg=TEXT_COLOR, font=("Arial", 12), borderwidth=0,
+          command=lambda: show_frame('historico')).pack(side='left', padx=10, pady=10)
+tk.Label(top_frame, text="✝️ Igreja", bg=PRIMARY_BG, fg=HIGHLIGHT, font=("Arial", 16, "bold")).pack(side='right', padx=20, pady=10)
 
-membros_btn = tk.Button(top_frame, text="Membros", bg=DARK_BG, fg=TEXT_FG, borderwidth=0, command=lambda: show_frame('membros'))
-membros_btn.pack(side='left', padx=10)
-
-historico_btn = tk.Button(top_frame, text="Historico", bg=DARK_BG, fg=TEXT_FG, borderwidth=0, command=lambda: show_frame('historico'))
-historico_btn.pack(side='left', padx=10)
-
-logo = tk.Label(top_frame, text="Igreja", bg=DARK_BG, fg=TEXT_FG, font=("Arial", 14, "bold"))
-logo.pack(side='right', padx=10)
-
-main_frame = tk.Frame(root, bg=DARK_BG)
+main_frame = tk.Frame(root, bg=PRIMARY_BG)  # Definido aqui
 main_frame.pack(fill='both', expand=True)
 
 current_tab = 'home'
