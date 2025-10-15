@@ -4,6 +4,8 @@ import json
 import random
 import os
 from datetime import datetime, timedelta
+import pyperclip
+from fpdf import FPDF
 
 ARQUIVO_DADOS = "dados.json"
 
@@ -32,7 +34,6 @@ def carregar_dados():
         return {"membros": [], "grupos": {}, "sorteios": [], "restricoes_horarios": {}}
     with open(ARQUIVO_DADOS, "r", encoding="utf-8") as f:
         dados = json.load(f)
-        # Garantir que restricoes_horarios exista
         if "restricoes_horarios" not in dados:
             dados["restricoes_horarios"] = {}
         return dados
@@ -48,13 +49,50 @@ def adicionar_membro():
     nome = simpledialog.askstring("Novo Membro", "Nome do membro:")
     if not nome:
         return
-    dados["membros"].append(nome)
-    if nome not in dados["restricoes_horarios"]:
-        dados["restricoes_horarios"][nome] = []
-    salvar_dados(dados)
-    messagebox.showinfo("Sucesso", f"Membro '{nome}' adicionado com sucesso!")
-    if current_tab == 'membros':
-        show_frame('membros')
+
+    # Janela para marcar horários restritos
+    window = tk.Toplevel(root)
+    window.title(f"Marque os horários restritos para {nome}")
+    window.geometry("300x500")
+    window.configure(bg=DARK_BG)
+
+    canvas_frame = tk.Frame(window, bg=DARK_BG)
+    canvas_frame.pack(fill='both', expand=True)
+
+    canvas = tk.Canvas(canvas_frame, bg=DARK_BG)
+    scrollbar = ttk.Scrollbar(canvas_frame, orient="vertical", command=canvas.yview)
+    scrollable_frame = tk.Frame(canvas, bg=DARK_BG)
+
+    scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+
+    canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+    canvas.configure(yscrollcommand=scrollbar.set)
+
+    scrollbar.pack(side="right", fill="y")
+    canvas.pack(side="left", fill="both", expand=True)
+
+    horarios = get_horarios()
+    check_vars = {}
+
+    for h in horarios:
+        var = tk.IntVar(value=0)
+        chk = tk.Checkbutton(scrollable_frame, text=h, variable=var, onvalue=1, offvalue=0,
+                             bg=DARK_BG, fg=TEXT_FG, selectcolor=SELECT_BG,
+                             activebackground=DARK_BG, activeforeground=TEXT_FG)
+        chk.pack(anchor='w', padx=10, pady=2)
+        check_vars[h] = var
+
+    def salvar_membro():
+        restricoes = [h for h, var in check_vars.items() if var.get() == 1]
+        dados["membros"].append(nome)
+        dados["restricoes_horarios"][nome] = restricoes
+        salvar_dados(dados)
+        messagebox.showinfo("Sucesso", f"Membro '{nome}' adicionado com sucesso!")
+        window.destroy()
+        if current_tab == 'membros':
+            show_frame('membros')
+
+    tk.Button(window, text="Salvar", command=salvar_membro, bg=ENTRY_BG, fg=TEXT_FG, width=20).pack(pady=10)
 
 def adicionar_grupo():
     nome_grupo = simpledialog.askstring("Novo Grupo", "Nome do grupo:")
@@ -75,20 +113,36 @@ def adicionar_membro_ao_grupo_specific(membro):
     if not dados["grupos"]:
         messagebox.showwarning("Aviso", "Nenhum grupo cadastrado!")
         return
-    grupo = simpledialog.askstring("Adicionar ao Grupo", f"Grupos disponíveis:\n{', '.join(dados['grupos'].keys())}\n\nDigite o nome do grupo:")
-    if not grupo:
-        return
-    if grupo not in dados["grupos"]:
-        messagebox.showerror("Erro", "Grupo não encontrado!")
-        return
-    if membro in dados["grupos"][grupo]:
-        messagebox.showinfo("Aviso", "Esse membro já está nesse grupo!")
-        return
-    dados["grupos"][grupo].append(membro)
-    salvar_dados(dados)
-    if current_tab == 'membros':
-        show_frame('membros')
-    messagebox.showinfo("Sucesso", f"Membro '{membro}' adicionado ao grupo '{grupo}' com sucesso!")
+
+    # Janela para selecionar grupo com tamanho ajustado
+    window = tk.Toplevel(root)
+    window.title(f"Adicionar {membro} a um grupo")
+    window.geometry("400x150")  # Aumentado para 400x150
+    window.configure(bg=DARK_BG)
+
+    tk.Label(window, text="Selecione o grupo:", bg=DARK_BG, fg=TEXT_FG).pack(pady=20)
+
+    grupos_var = tk.StringVar(value="")
+    combobox = ttk.Combobox(window, textvariable=grupos_var, values=list(dados["grupos"].keys()), state="readonly")
+    combobox.pack(pady=20)
+
+    def salvar_selecao():
+        grupo = grupos_var.get()
+        if not grupo:
+            messagebox.showwarning("Aviso", "Selecione um grupo!")
+            return
+        if membro in dados["grupos"][grupo]:
+            messagebox.showinfo("Aviso", "Esse membro já está nesse grupo!")
+            window.destroy()
+            return
+        dados["grupos"][grupo].append(membro)
+        salvar_dados(dados)
+        if current_tab == 'membros':
+            show_frame('membros')
+        messagebox.showinfo("Sucesso", f"Membro '{membro}' adicionado ao grupo '{grupo}' com sucesso!")
+        window.destroy()
+
+    tk.Button(window, text="Adicionar", command=salvar_selecao, bg=ENTRY_BG, fg=TEXT_FG, width=20).pack(pady=20)
 
 def gerenciar_restricoes(membro):
     if not membro:
@@ -177,21 +231,99 @@ def gerar_sorteio():
     show_frame('historico')
 
 # ==================================================
+# FUNÇÃO PARA COPIAR TEXTO
+# ==================================================
+def copiar_texto_sorteio(sorteio):
+    texto = f"Sorteio - {sorteio['data']}\n\n"
+    texto += "Geral:\n"
+    for h, nome in sorteio["resultados"].items():
+        texto += f"{h}: {nome}\n"
+    texto += "\n"
+    for grupo, membros_grupo in dados["grupos"].items():
+        texto += f"{grupo}:\n"
+        for h, nome in sorteio["resultados"].items():
+            if nome in membros_grupo:
+                texto += f"{h}: {nome}\n"
+        texto += "\n"
+    pyperclip.copy(texto)
+    messagebox.showinfo("Sucesso", "Texto do sorteio copiado para a área de transferência!")
+
+# ==================================================
+# FUNÇÃO PARA GERAR PDF
+# ==================================================
+def gerar_pdf_sorteio(sorteio):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 10, txt=f"Sorteio - {sorteio['data']}", ln=1, align='C')
+    
+    pdf.set_font("Arial", 'B', size=10)
+    pdf.cell(200, 10, txt="Geral:", ln=1)
+    pdf.set_font("Arial", size=10)
+    for h, nome in sorteio["resultados"].items():
+        # Substituir "—" por "-" para evitar erro de codificação
+        nome_seguro = nome.replace("—", "-")
+        pdf.cell(200, 10, txt=f"{h}: {nome_seguro}", ln=1)
+    
+    for grupo, membros_grupo in dados["grupos"].items():
+        pdf.set_font("Arial", 'B', size=10)
+        pdf.cell(200, 10, txt=f"{grupo}:", ln=1)
+        pdf.set_font("Arial", size=10)
+        for h, nome in sorteio["resultados"].items():
+            if nome in membros_grupo:
+                nome_seguro = nome.replace("—", "-")
+                pdf.cell(200, 10, txt=f"{h}: {nome_seguro}", ln=1)
+    
+    file_path = f"sorteio_{sorteio['data'].replace('/', '-').replace(':', '-')}.pdf"
+    pdf.output(file_path)
+    messagebox.showinfo("Sucesso", f"PDF gerado com sucesso: {file_path}")
+
+# ==================================================
 # FUNÇÃO DE EXIBIÇÃO
 # ==================================================
 def show_sorteio_in_frame(sorteio, frame):
     for w in frame.winfo_children():
         w.destroy()
 
-    tree = ttk.Treeview(frame, columns=("Horario", "Membro"), show="headings")
-    tree.heading("Horario", text="Horário")
-    tree.heading("Membro", text="Membro")
-    tree.column("Horario", width=100)
-    tree.column("Membro", width=250)
-    tree.pack(fill="both", expand=True)
+    notebook = ttk.Notebook(frame)
+    notebook.pack(fill="both", expand=True)
+
+    # Aba Geral
+    geral_frame = tk.Frame(notebook, bg=DARK_BG)
+    notebook.add(geral_frame, text="Geral")
+
+    tree_geral = ttk.Treeview(geral_frame, columns=("Horario", "Membro"), show="headings")
+    tree_geral.heading("Horario", text="Horário")
+    tree_geral.heading("Membro", text="Membro")
+    tree_geral.column("Horario", width=100)
+    tree_geral.column("Membro", width=250)
+    tree_geral.pack(fill="both", expand=True)
 
     for h, nome in sorteio["resultados"].items():
-        tree.insert("", "end", values=(h, nome))
+        tree_geral.insert("", "end", values=(h, nome))
+
+    # Abas por Grupo
+    for grupo, membros_grupo in dados["grupos"].items():
+        grupo_frame = tk.Frame(notebook, bg=DARK_BG)
+        notebook.add(grupo_frame, text=grupo)
+
+        tree_grupo = ttk.Treeview(grupo_frame, columns=("Horario", "Membro"), show="headings")
+        tree_grupo.heading("Horario", text="Horário")
+        tree_grupo.heading("Membro", text="Membro")
+        tree_grupo.column("Horario", width=100)
+        tree_grupo.column("Membro", width=250)
+        tree_grupo.pack(fill="both", expand=True)
+
+        for h, nome in sorteio["resultados"].items():
+            if nome in membros_grupo:
+                tree_grupo.insert("", "end", values=(h, nome))
+
+    # Botões para copiar e baixar
+    buttons_frame = tk.Frame(frame, bg=DARK_BG)
+    buttons_frame.pack(fill='x', pady=10)
+
+    tk.Button(buttons_frame, text="Copiar Texto", command=lambda: copiar_texto_sorteio(sorteio), bg=ENTRY_BG, fg=TEXT_FG, width=15).pack(side='left', padx=10)
+    tk.Button(buttons_frame, text="Baixar PDF", command=lambda: gerar_pdf_sorteio(sorteio), bg=ENTRY_BG, fg=TEXT_FG, width=15).pack(side='left', padx=10)
 
 # ==================================================
 # INTERFACE
