@@ -509,7 +509,7 @@ tk.Button(top_frame, text="👥 Membros", bg=ACCENT_BG, fg=TEXT_COLOR, font=("Ar
           command=lambda: show_frame('membros')).pack(side='left', padx=10, pady=10)
 tk.Button(top_frame, text="📅 Histórico", bg=ACCENT_BG, fg=TEXT_COLOR, font=("Arial", 12), borderwidth=0,
           command=lambda: show_frame('historico')).pack(side='left', padx=10, pady=10)
-tk.Label(top_frame, text="✝️ Igreja", bg=PRIMARY_BG, fg=HIGHLIGHT, font=("Arial", 16, "bold")).pack(side='right', padx=20, pady=10)
+tk.Label(top_frame, text="✝️ IECYS", bg=PRIMARY_BG, fg=HIGHLIGHT, font=("Arial", 16, "bold")).pack(side='right', padx=20, pady=10)
 
 main_frame = tk.Frame(root, bg=PRIMARY_BG)  # Definido aqui
 main_frame.pack(fill='both', expand=True)
