@@ -22,9 +22,9 @@ SELECT_COLOR = "#4A6FA5" # Azul claro para seleção
 def get_horarios():
     horarios = []
     hora = datetime.strptime("00:00", "%H:%M")
-    for _ in range(96):
+    for _ in range(24):  # 24 horas por dia
         horarios.append(hora.strftime("%H:%M"))
-        hora += timedelta(minutes=15)
+        hora += timedelta(hours=1)  # Incremento de 1 hora
     return horarios
 
 # ==================================================
@@ -53,7 +53,7 @@ def adicionar_membro():
 
     window = tk.Toplevel(root)
     window.title(f"Restrições de {nome}")
-    window.geometry("350x550")
+    window.geometry("350x300")  # Ajustado para menos itens (24 horas)
     window.configure(bg=PRIMARY_BG)
 
     canvas_frame = tk.Frame(window, bg=PRIMARY_BG)
@@ -83,18 +83,55 @@ def adicionar_membro():
         chk.pack(anchor='w', padx=15, pady=5)
         check_vars[h] = var
 
-    def salvar_membro():
+    def salvar_membro_e_adicionar_grupo():
         restricoes = [h for h, var in check_vars.items() if var.get() == 1]
         dados["membros"].append(nome)
         dados["restricoes_horarios"][nome] = restricoes
         salvar_dados(dados)
-        messagebox.showinfo("Sucesso", f"'{nome}' adicionado!", parent=root)
         window.destroy()
-        if current_tab == 'membros':
-            show_frame('membros')
+        adicionar_a_grupo(nome)
 
-    tk.Button(window, text="Salvar", command=salvar_membro, bg=HIGHLIGHT, fg=PRIMARY_BG,
-              font=("Arial", 12, "bold"), width=15, relief="flat").pack(pady=15)
+    def adicionar_a_grupo(membro):
+        if not dados["grupos"]:
+            messagebox.showinfo("Informação", "Nenhum grupo cadastrado. Crie um grupo primeiro!", parent=root)
+            if current_tab == 'membros':
+                show_frame('membros')
+            return
+
+        grupo_window = tk.Toplevel(root)
+        grupo_window.title(f"Adicionar {membro} a um grupo")
+        grupo_window.geometry("450x200")
+        grupo_window.configure(bg=PRIMARY_BG)
+
+        tk.Label(grupo_window, text="Selecione o grupo:", bg=PRIMARY_BG, fg=TEXT_COLOR,
+                 font=("Arial", 12, "bold")).pack(pady=20)
+
+        grupos_var = tk.StringVar(value="")
+        combobox = ttk.Combobox(grupo_window, textvariable=grupos_var, values=list(dados["grupos"].keys()),
+                                state="readonly", style="Custom.TCombobox")
+        combobox.pack(pady=20)
+
+        def salvar_selecao():
+            grupo = grupos_var.get()
+            if not grupo:
+                messagebox.showwarning("Aviso", "Selecione um grupo!", parent=root)
+                return
+            if membro in dados["grupos"][grupo]:
+                messagebox.showinfo("Aviso", "Membro já está nesse grupo!", parent=root)
+                grupo_window.destroy()
+                return
+            dados["grupos"][grupo].append(membro)
+            salvar_dados(dados)
+            messagebox.showinfo("Sucesso", f"'{membro}' adicionado a '{grupo}'!", parent=root)
+            grupo_window.destroy()
+            if current_tab == 'membros':
+                show_frame('membros')
+
+        tk.Button(grupo_window, text="Adicionar", command=salvar_selecao, bg=HIGHLIGHT, fg=PRIMARY_BG,
+                  font=("Arial", 12, "bold"), width=15, relief="flat").pack(pady=20)
+
+    tk.Button(window, text="Salvar e Adicionar a Grupo", command=salvar_membro_e_adicionar_grupo, bg=HIGHLIGHT,
+              fg=PRIMARY_BG, font=("Arial", 12, "bold"), width=20, relief="flat").pack(pady=15)
 
 def adicionar_grupo():
     nome_grupo = simpledialog.askstring("Novo Grupo", "Nome do grupo:", parent=root)
@@ -153,7 +190,7 @@ def gerenciar_restricoes(membro):
         return
     window = tk.Toplevel(root)
     window.title(f"Restrições de {membro}")
-    window.geometry("350x550")
+    window.geometry("350x300")  # Ajustado para 24 horas
     window.configure(bg=PRIMARY_BG)
 
     canvas_frame = tk.Frame(window, bg=PRIMARY_BG)
@@ -509,9 +546,9 @@ tk.Button(top_frame, text="👥 Membros", bg=ACCENT_BG, fg=TEXT_COLOR, font=("Ar
           command=lambda: show_frame('membros')).pack(side='left', padx=10, pady=10)
 tk.Button(top_frame, text="📅 Histórico", bg=ACCENT_BG, fg=TEXT_COLOR, font=("Arial", 12), borderwidth=0,
           command=lambda: show_frame('historico')).pack(side='left', padx=10, pady=10)
-tk.Label(top_frame, text="✝️ IECYS", bg=PRIMARY_BG, fg=HIGHLIGHT, font=("Arial", 16, "bold")).pack(side='right', padx=20, pady=10)
+tk.Label(top_frame, text="✝️ Igreja", bg=PRIMARY_BG, fg=HIGHLIGHT, font=("Arial", 16, "bold")).pack(side='right', padx=20, pady=10)
 
-main_frame = tk.Frame(root, bg=PRIMARY_BG)  # Definido aqui
+main_frame = tk.Frame(root, bg=PRIMARY_BG)
 main_frame.pack(fill='both', expand=True)
 
 current_tab = 'home'
